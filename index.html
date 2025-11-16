@@ -1,0 +1,125 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Ajaib AI — Hybrid Pro (anjasmara)</title><link rel="icon" href="assets/logo.png"/><link rel="stylesheet" href="style.css"/></head><body class="theme-dark"><div id="loader" class="loader-screen"><div class="loader-box"><div class="spinner"></div><div class="loader-text">Memuat aplikasi — Tunggu sebentar...</div></div></div><header class="topbar"><div class="brand">Ajaib AI <span class="badge">PRO</span></div><div class="controls"><button id="themeToggle" class="icon-btn">🌓</button></div></header><main class="wrap"><aside class="left card"><h3>Quote Inspiratif</h3><div id="quoteBox" class="quote">Memuat...</div><div style="margin-top:12px"><button class="btn" id="refreshQuote">Refresh Quote</button></div><hr/><h3>Hero</h3><div class="hero"><h2>Belajar, Berkembang, Berhasil</h2><p>AI mentor yang membantu menyusun langkah suksesmu — cepat & privat.</p></div></aside><section class="center card"><div class="chat-header"><h2>Asisten AI</h2><button class="btn" id="playLast" title="Play last AI reply">🔊</button><div class="model-label" id="modelLabel">Auto</div></div><div id="aiMessages" class="chat-window"></div><div class="chat-input"><textarea id="prompt" placeholder="Tulis pesan..."></textarea><div class="controls"><select id="modelSelect"><option value="">Auto (llama3-70b)</option><option value="llama3-70b-8192">llama3-70b</option><option value="llama3-8b-8192">llama3-8b</option><option value="gpt-4o-mini">OpenAI gpt-4o-mini</option></select><button class="btn" id="sendBtn">Kirim</button></div></div></section><aside class="right card"><h3>Featured Video</h3><div class="yt-controls"><input id="ytSearch" placeholder="Cari YouTube..." /><button class="btn" id="searchBtn">Search</button><button class="btn" id="randomBtn">Random</button></div><div class="yt-wrap"><iframe id="ytPlayer" src="" allowfullscreen></iframe></div><div class="social-row"><button class="btn" id="tiktokBtn">TikTok</button><button class="btn" id="instagramBtn">Instagram</button><button class="btn" id="facebookBtn">Facebook</button></div></aside></main><script src="app.js"><script src="chat-history.js"></script><script src="tts.js"></script>
+<style>
+/* minimal inlined styles for AI + player */
+.ai-panel{border:1px solid #ddd;padding:10px;border-radius:8px;margin:10px 0}
+.conv{height:260px;overflow:auto;padding:8px;background:#fafafa;border-radius:6px}
+.conv .u{ text-align:right; margin:6px;}
+.conv .b{ text-align:left; margin:6px;}
+</style>
+<div class="ai-panel" id="ai-panel">
+  <h3>AI Assistant</h3>
+  <div class="conv" id="conversation"></div>
+  <form id="chatForm" onsubmit="return sendChat(event)">
+    <input id="chatMsg" placeholder="Tulis pesan..." style="width:70%" />
+    <select id="modeSel"><option value="local">Local</option><option value="api">OpenAI API</option></select>
+    <button type="submit">Kirim</button>
+  </form>
+</div>
+
+<div class="ai-panel">
+  <h3>Mini Player (YouTube / URL)</h3>
+  <input id="videoInput" placeholder="YouTube URL atau MP4" style="width:70%"/>
+  <button onclick="loadVid()">Putar</button>
+  <div id="playerWrap" style="margin-top:8px;position:relative;padding-top:56.25%;background:#000;border-radius:6px;overflow:hidden"></div>
+</div>
+
+<script>
+// basic functions integrated with server API
+function addConv(who, text){
+  const c = document.getElementById('conversation');
+  const d = document.createElement('div');
+  d.className = who==='user'?'u':'b';
+  d.innerText = text;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+function sendChat(e){
+  e.preventDefault();
+  const txt = document.getElementById('chatMsg').value.trim();
+  if(!txt) return false;
+  addConv('user', txt);
+  document.getElementById('chatMsg').value='';
+  addConv('bot','...memproses');
+  const mode = document.getElementById('modeSel').value;
+  if(mode==='local'){
+    setTimeout(()=>{ const bots = document.querySelectorAll('.b'); bots[bots.length-1].innerText = 'Ini balasan demo lokal.'; }, 600);
+  } else {
+    fetch('/api/chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:txt})})
+    .then(r=>r.json()).then(j=>{
+      const bots = document.querySelectorAll('.b');
+      if(j.reply) bots[bots.length-1].innerText = j.reply;
+      else bots[bots.length-1].innerText = j.error || 'Tidak ada balasan';
+    }).catch(err=>{
+      const bots = document.querySelectorAll('.b');
+      bots[bots.length-1].innerText = 'Gagal: ' + err.message;
+    });
+  }
+  return false;
+}
+function extractYouTubeID(url){
+  try{ const u=new URL(url); if(u.hostname.includes('youtu.be')) return u.pathname.slice(1); if(u.hostname.includes('youtube.com')) return new URLSearchParams(u.search).get('v'); }catch(e){}
+  if(/^[A-Za-z0-9_-]{11}$/.test(url)) return url;
+  return null;
+}
+function loadVid(){
+  const v = document.getElementById('videoInput').value.trim();
+  const wrap = document.getElementById('playerWrap');
+  wrap.innerHTML='';
+  const id = extractYouTubeID(v);
+  if(id){
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube.com/embed/'+id+'?rel=0&playsinline=1';
+    iframe.style.position='absolute'; iframe.style.top=0; iframe.style.left=0; iframe.style.width='100%'; iframe.style.height='100%'; iframe.frameBorder=0;
+    wrap.appendChild(iframe);
+    return;
+  }
+  if(v.endsWith('.mp4')){ const vid=document.createElement('video'); vid.src=v; vid.controls=true; vid.style.position='absolute'; vid.style.top=0; vid.style.left=0; vid.style.width='100%'; vid.style.height='100%'; wrap.appendChild(vid); return; }
+  // fallback open link
+  window.open(v,'_blank');
+}
+</script>
+
+<hr/>
+<div style="padding:10px;border:1px solid #ddd;margin:10px;border-radius:8px">
+  <h3>AI Streaming (SSE demo)</h3>
+  <input id="streamPrompt" placeholder="Tulis prompt untuk streaming..." style="width:70%"/>
+  <button id="streamBtn">Start Stream</button>
+  <pre id="streamOut" style="background:#000;color:#0f0;padding:8px;height:160px;overflow:auto;border-radius:6px"></pre>
+</div>
+
+<div style="padding:10px;border:1px solid #ddd;margin:10px;border-radius:8px">
+  <h3>Instagram Caption Generator</h3>
+  <textarea id="igText" placeholder="Deskripsi / konteks foto..." style="width:70%;height:80px"></textarea><br/>
+  <select id="igTone"><option>inspiratif</option><option>humor</option><option>informal</option></select>
+  <button id="igBtn">Buat Caption</button>
+  <pre id="igOut" style="background:#fafafa;padding:8px;border-radius:6px"></pre>
+</div>
+
+<script>
+document.getElementById('streamBtn').addEventListener('click', ()=>{
+  const p = document.getElementById('streamPrompt').value.trim();
+  if(!p) return alert('Isi prompt');
+  const out = document.getElementById('streamOut');
+  out.textContent = '';
+  const url = '/ai/stream?prompt=' + encodeURIComponent(p);
+  const evt = new EventSource(url);
+  evt.onmessage = function(e){
+    out.textContent += e.data;
+    out.scrollTop = out.scrollHeight;
+  };
+  evt.addEventListener('done', ()=>{ evt.close(); });
+  evt.onerror = function(e){ out.textContent += '\n[error]\n'; evt.close(); };
+});
+
+document.getElementById('igBtn').addEventListener('click', async ()=>{
+  const text = document.getElementById('igText').value.trim();
+  const tone = document.getElementById('igTone').value;
+  if(!text) return alert('Isi deskripsi');
+  document.getElementById('igOut').textContent = 'Memproses...';
+  const res = await fetch('/ig/caption', {method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({text,tone})});
+  const j = await res.json();
+  if(j.caption) document.getElementById('igOut').textContent = j.caption;
+  else document.getElementById('igOut').textContent = (j.error||'Error');
+});
+</script>
+</body></html>
